@@ -10,22 +10,45 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const errorHandler = require('./middlewares/errorHandler');
 const connectDB = require('./utils/db')
 const PORT = process.env.PORT;
-app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+const FRONT_ENDS = process.env.FRONT_ENDS.split(',');
 
 
 connectDB();
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || FRONT_ENDS.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+};
+app.use(cors(corsOptions));
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    next();
+});
+app.options('*', cors(corsOptions));
 
-app.get('/',(req,res)=>{
-    res.status(200).json({
-        success:true,
-        message:'Welcome to blog posts about trending technologies',
-    });
-})
+app.get("/", (req, res) => {
+    res.send("Standard root");
+});
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
+
+
+app.all("*", (req, res, next) => {
+    const error = new Error("No such routes available");
+    error.statusCode = 404;
+    next(error);
+});
 
 app.use(errorHandler);
 
